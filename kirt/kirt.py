@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.special import binom
 from scipy import stats as spstat
+from scipy import sparse
 
 
 class Kirt_base(object):
@@ -218,7 +219,60 @@ class Regression(Kirt_base):
 
 
 class SVD(Kirt_base):
-    pass
+    def __init__(self, X, trunc=None):
+        self.X = X
+        if trunc is not None:
+            self.trunc = min(trunc, X.shape[0])
+        else:
+            self.trunc = X.shape[0]
+
+        self.U, self.S, self.V = self.direct(X, self.trunc)
+
+    def direct(self, X, trunc):
+        U, S, V = np.linalg.svd(X, full_matrices=False)
+
+        V = V.conj().T
+
+        U_r = U[:, :trunc]
+        S_r = S[:trunc]
+        V_r = V[:, :trunc]
+
+        return U_r, S_r, V_r
+
+    def update(self, x_in):
+        """
+        Based on Brand, M. 'Fast low-rank modifications of the thin singular
+        value decomposition' (2005)
+        """
+        x_out = self.X[:, 0]
+        # Update recent w snapshots
+        self.X = np.column_stack((self.X[:, 1:], x_in))
+
+        r = self.S.shape[0]
+
+        A = sparse.diags(self.S)
+        # variable, m, in Eq. (6)
+        B = (self.U.T @ x_in).reshape(-1, 1)
+        C = np.zeros((1, r))
+        # variable, R_a in Eq. (6)
+        p = np.linalg.norm((np.eye(len(x_in)) - self.U @ self.U.T) @ (x_in - x_out))
+        D = np.array([[p]])
+
+        # Eq. (9)
+        K = sparse.bmat([[A, B], [C, D]], format="csr")
+
+        # k=min(K.shape) - 1
+        k = self.trunc
+        U_, S_, _ = sparse.linalg.svds(K, k=k, return_singular_vectors="u")
+        # order singular values in descending order.
+        S_ = S_[::-1]
+
+        # U_, S_, _ = self.direct(K.toarray(), trunc=k) # seems to be faster than sparse method for large ranks.
+
+        # Eq. (12)
+        self.U = self.U @ U_[:r, :]
+        # Eq. (5)
+        self.S = S_
 
 
 class RainflowCounting(Kirt_base):
