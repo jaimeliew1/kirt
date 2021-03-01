@@ -26,7 +26,11 @@ class Mean(Kirt_base):
         self.X = X
         self.N, self.M = X.shape
 
-    def direct(self, X):
+    @property
+    def direct(self):
+        return self._direct(self.X)
+
+    def _direct(self, X):
         return X.mean(axis=1)
 
     def update(self, x_in):
@@ -51,7 +55,11 @@ class Var(Kirt_base):
         self.X = X
         self.N, self.M = X.shape
 
-    def direct(self, X):
+    @property
+    def direct(self):
+        return self._direct(self.X)
+
+    def _direct(self, X):
         return X.var(axis=1)
         # return np.mean(X - X.mean(axis=1).reshape([-1, 1]) ** 2, axis=1)
 
@@ -106,7 +114,11 @@ class CentralMoment(Kirt_base):
                 )
         return moment
 
-    def direct(self, X):
+    @property
+    def direct(self):
+        return self._direct(self.X)
+
+    def _direct(self, X):
         _sum = []
         for i in range(self.N):
             _sum.append(np.vander(X[i, :], self.n + 1, increasing=True).T.sum(1))
@@ -151,7 +163,11 @@ class MVSK(Kirt_base):
 
         return stats
 
-    def direct(self, X):
+    @property
+    def direct(self):
+        return self._direct(self.X)
+
+    def _direct(self, X):
         rolling_moment = CentralMoment(X, n=4)
         return self._moment_to_stat(rolling_moment.value)
 
@@ -185,7 +201,11 @@ class Regression(Kirt_base):
         self.A = Y @ np.linalg.pinv(X)
         self.P = np.linalg.inv(X @ X.T)
 
-    def direct(self, X, Y):
+    @property
+    def direct(self):
+        return self._direct(self.X, self.Y)
+
+    def _direct(self, X, Y):
         return Y @ np.linalg.pinv(X)
 
     def update(self, x_in, y_in):
@@ -228,7 +248,11 @@ class SVD(Kirt_base):
 
         self.U, self.S, self.V = self.direct(X, self.trunc)
 
-    def direct(self, X, trunc):
+    @property
+    def direct(self):
+        return self._direct(self.X, self.trunc)
+
+    def _direct(self, X, trunc):
         U, S, V = np.linalg.svd(X, full_matrices=False)
 
         V = V.conj().T
